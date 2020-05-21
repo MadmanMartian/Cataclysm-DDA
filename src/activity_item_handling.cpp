@@ -2935,43 +2935,66 @@ bool find_auto_consume( player &p, const bool food )
     const std::unordered_set<tripoint> &dest_set = mgr.get_near( consume_type_zone, g->m.getabs( pos ),
             ACTIVITY_SEARCH_DISTANCE );
     if( dest_set.empty() ) {
+        //Couldn't find anywhere to eat within search distance
         return false;
     }
     for( const tripoint loc : dest_set ) {
         if( loc.z != p.pos().z ) {
+            //Up or down a z level
             continue;
         }
         map_stack food_there = g->m.i_at( g->m.getlocal( loc ) );
         for( item &it : food_there ) {
+            //The comestable information of what we are eating
             item &comest = p.get_consumable_from( it );
-            if( comest.is_null() || comest.is_craft() || !comest.is_food() ||
-                p.fun_for( comest ).first < -5 ) {
-                // not good eatings.
+
+            if( comest.is_null() || comest.is_craft() || !comest.is_food() || p.fun_for( comest ).first < -5 ) {
+                // not good to eat (Doesn't exist, used for crafting, not food, or not fun to eat)
                 continue;
             }
+
             if( !p.can_consume( it ) ) {
+                //We can't eat this
                 continue;
             }
-            if( food && p.compute_effective_nutrients( comest ).kcal < 50 ) {
-                // not filling enough
+
+            if (!it.is_owned_by(p, true)) {
+                // it isn't ours to eat.
                 continue;
             }
+
+            //If what we are consuming is food
+            if( food ){
+                if (comest.get_comestible()->comesttype != "FOOD") {
+                    // This isn't considered food
+                    continue;
+                }
+                if (p.compute_effective_nutrients(comest).kcal < 50) {
+                    // not filling enough
+                    continue;
+                }
+            }
+            //Else, what we are consuming is drink
+            else {
+                if (comest.get_comestible()->comesttype != "DRINK") {
+                    // This isn't considered a drink
+                    continue;
+                }
+                if (comest.get_comestible()->quench < 15) {
+                    // not quenching enough
+                    continue;
+                }
+                if (it.is_watertight_container() && comest.made_of(SOLID)) {
+                    // its frozen
+                    continue;
+                }
+            }
+
             if( !p.will_eat( comest, false ).success() ) {
                 // wont like it, cannibal meat etc
                 continue;
             }
-            if( !it.is_owned_by( p, true ) ) {
-                // it aint ours.
-                continue;
-            }
-            if( !food && comest.get_comestible()->quench < 15 ) {
-                // not quenching enough
-                continue;
-            }
-            if( !food && it.is_watertight_container() && comest.made_of( SOLID ) ) {
-                // its frozen
-                continue;
-            }
+
             p.mod_moves( -Pickup::cost_to_move_item( p, it ) * std::max( rl_dist( p.pos(),
                          g->m.getlocal( loc ) ), 1 ) );
             item_location item_loc( map_cursor( g->m.getlocal( loc ) ), &it );
