@@ -138,6 +138,8 @@ static const std::string flag_PLOWABLE( "PLOWABLE" );
 static const std::string flag_POWERED( "POWERED" );
 static const std::string flag_TREE( "TREE" );
 
+static const trait_id trait_PROJUNK2("PROJUNK2");
+
 void cancel_aim_processing();
 //Generic activity: maximum search distance for zones, constructions, etc.
 const int ACTIVITY_SEARCH_DISTANCE = 60;
@@ -2963,27 +2965,26 @@ bool find_auto_consume( player &p, const bool food )
                 continue;
             }
 
+            if (!p.has_trait(trait_PROJUNK2) && comest.get_comestible()->healthy < 0) {
+                //This deals damage to us
+                continue;
+            }
+
             //If what we are consuming is food
             if( food ){
-                if (comest.get_comestible()->comesttype != "FOOD") {
-                    // This isn't considered food
-                    continue;
-                }
                 if (p.compute_effective_nutrients(comest).kcal < 50) {
                     // not filling enough
                     continue;
                 }
             }
+
             //Else, what we are consuming is drink
             else {
-                if (comest.get_comestible()->comesttype != "DRINK") {
-                    // This isn't considered a drink
-                    continue;
-                }
                 if (comest.get_comestible()->quench < 15) {
                     // not quenching enough
                     continue;
                 }
+
                 if (it.is_watertight_container() && comest.made_of(SOLID)) {
                     // its frozen
                     continue;
